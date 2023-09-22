@@ -13,6 +13,8 @@ var ErrNotSupported = xerrors.New("method not supported")
 
 type FilFilAPIStruct struct {
 	Internal struct {
+		ChainGetTipSet func(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) ``
+
 		FilFilDagExport func(p0 context.Context, p1 saaf.Height, p2 types.TipSetKey) (<-chan []byte, error) ``
 
 		GetDagNode func(p0 context.Context, p1 saaf.Height) ([]saaf.Pointer, error) ``
@@ -20,6 +22,17 @@ type FilFilAPIStruct struct {
 }
 
 type FilFilAPIStub struct {
+}
+
+func (s *FilFilAPIStruct) ChainGetTipSet(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) {
+	if s.Internal.ChainGetTipSet == nil {
+		return nil, ErrNotSupported
+	}
+	return s.Internal.ChainGetTipSet(p0, p1)
+}
+
+func (s *FilFilAPIStub) ChainGetTipSet(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) {
+	return nil, ErrNotSupported
 }
 
 func (s *FilFilAPIStruct) FilFilDagExport(p0 context.Context, p1 saaf.Height, p2 types.TipSetKey) (<-chan []byte, error) {
