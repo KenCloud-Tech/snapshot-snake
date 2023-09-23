@@ -41,7 +41,7 @@ func (l *fxLogger) Printf(msg string, args ...interface{}) {
 
 // GetAPIV0
 func GetAPIV0(ctx *cli.Context) (api.FilFilAPI, jsonrpc.ClientCloser, error) {
-	var res api.FilFilNodeAPI
+	var res api.FilFilAPIStruct
 	rpath, err := dep.GetRepoPath(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -60,8 +60,7 @@ func GetAPIV0(ctx *cli.Context) (api.FilFilAPI, jsonrpc.ClientCloser, error) {
 	}
 	closer, err := jsonrpc.NewMergeClient(ctx.Context, addr, "filfil",
 		[]interface{}{
-			// todo fix
-			&res,
+			&res.Internal,
 		},
 		nil,
 	)

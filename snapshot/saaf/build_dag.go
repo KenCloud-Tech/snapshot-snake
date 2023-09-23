@@ -1,7 +1,6 @@
 package saaf
 
 import (
-	"context"
 	"fmt"
 	"github.com/filecoin-project/lotus/chain/types"
 	block "github.com/ipfs/go-block-format"
@@ -12,12 +11,14 @@ import (
 
 var log = logging.Logger("saaf")
 
+const MAX_HEIGHT = 1000
+
 type FilFilNode struct {
-	fCid Pointer
+	fCid cid.Cid
 	fBlk types.BlockHeader
 }
 
-func (f *FilFilNode) Pointer() Pointer {
+func (f *FilFilNode) Pointer() cid.Cid {
 	return f.fCid
 }
 
@@ -37,54 +38,53 @@ func (f *FilFilNode) GetHeight() int64 {
 	return int64(f.fBlk.Height)
 }
 
-func CidToPointer(cid cid.Cid) Pointer {
-	return Pointer(cid)
-}
-
-func CidsToPointers(cids []cid.Cid) []Pointer {
-	pts := make([]Pointer, len(cids))
-
-	for i, parent := range cids {
-		pts[i] = Pointer(parent)
-	}
-	return pts
-}
-
-func PointersToCids(pointers []Pointer) []cid.Cid {
-	cids := make([]cid.Cid, len(pointers))
-	for i, pointer := range pointers {
-		cids[i] = cid.Cid(pointer)
-	}
-	return cids
-}
-
-func (f *FilFilNode) Parents() []Pointer {
+func (f *FilFilNode) Parents() []cid.Cid {
 	parents := f.fBlk.Parents
 
-	pts := CidsToPointers(parents)
-
-	return pts
+	return parents
 }
 
 func NewFilFilNode(id cid.Cid, header types.BlockHeader) *FilFilNode {
 	return &FilFilNode{
-		fCid: Pointer(id),
+		fCid: id,
 		fBlk: header,
 	}
 }
 
 type FilFilSource struct {
-	hpMapping map[Height][]Pointer
-	// todo
-	pnMapping map[Pointer]Node
+	hpMapping map[Height][]cid.Cid
+
+	pnMapping map[cid.Cid]Node
 }
 
-func (f *FilFilSource) FindPointersByHeight(height Height) []Pointer {
+func (f *FilFilSource) Latest() []cid.Cid {
+	height := findLatestHeight(f.hpMapping)
+	return f.FindPointersByHeight(height)
+}
+
+func (f *FilFilSource) Remove(pointer cid.Cid) {
+	delete(f.pnMapping, pointer)
+}
+
+func (f *FilFilSource) FindPointersByHeight(height Height) []cid.Cid {
 	return f.hpMapping[height]
 }
 
-// 找到最旧的高度
-func findOldestHeight(hpMapping map[Height][]Pointer) Height {
+func (f *FilFilSource) GetBlockByCid(id cid.Cid) block.Block {
+	node := f.pnMapping[id]
+	filNode := node.(*FilFilNode)
+
+	blk, err := filNode.GetBlock()
+
+	if err != nil {
+		log.Errorf("node get block err: %s", err)
+		return nil
+	}
+	return blk
+}
+
+// find the oldest height
+func findOldestHeight(hpMapping map[Height][]cid.Cid) Height {
 	oldestHeight := Height(0)
 	for height := range hpMapping {
 		if oldestHeight == 0 || height < oldestHeight {
@@ -94,42 +94,41 @@ func findOldestHeight(hpMapping map[Height][]Pointer) Height {
 	return oldestHeight
 }
 
-func (ffs *FilFilSource) AddSource(ts types.TipSet, dag *DAG) error {
+// find the latest height
+func findLatestHeight(hpMapping map[Height][]cid.Cid) Height {
+	latestHeight := Height(0)
+	for height := range hpMapping {
+		if latestHeight == 0 || height > latestHeight {
+			latestHeight = height
+		}
+	}
+	return latestHeight
+}
+
+func (ffs *FilFilSource) AddSource(ts types.TipSet) []cid.Cid {
 	height := ts.Height()
 	cids := ts.Cids()
 	blks := ts.Blocks()
+	var rcids []cid.Cid
 	var mu sync.Mutex
 
 	// add hpMapping
-	addNewHeight := func(height Height, cids []cid.Cid) error {
+	addNewHeight := func(height Height, cids []cid.Cid) {
 		mu.Lock()
 		defer mu.Unlock()
 
 		// add new ts to hpMapping
-		ffs.hpMapping[Height(height)] = CidsToPointers(cids)
+		ffs.hpMapping[height] = cids
 
 		// check height
-		for len(ffs.hpMapping) > 900 {
+		for len(ffs.hpMapping) > MAX_HEIGHT {
 			oldestHeight := findOldestHeight(ffs.hpMapping)
-			dCids := ffs.hpMapping[oldestHeight]
-			// delete hpMapping
+			rcids = ffs.hpMapping[oldestHeight]
 			delete(ffs.hpMapping, oldestHeight)
-			for _, id := range dCids {
-				// delete pnMapping
-				delete(ffs.pnMapping, id)
-				// unlink dag store
-				err := dag.Unlink(id)
-				return fmt.Errorf("dag unlink node err: %s", err)
-			}
-
 		}
-		return nil
 	}
 
-	err := addNewHeight(Height(height), cids)
-	if err != nil {
-		return err
-	}
+	addNewHeight(Height(height), cids)
 
 	// add pnMapping
 	for i := 0; i < len(cids); i++ {
@@ -137,13 +136,17 @@ func (ffs *FilFilSource) AddSource(ts types.TipSet, dag *DAG) error {
 		header := blks[i]
 		filFilNode := NewFilFilNode(id, *header)
 
-		ffs.pnMapping[CidToPointer(id)] = filFilNode
+		ffs.pnMapping[id] = filFilNode
 	}
 
-	return nil
+	for _, rcid := range rcids {
+		delete(ffs.pnMapping, rcid)
+	}
+
+	return rcids
 }
 
-func (ffs *FilFilSource) Resolve(p Pointer) (Node, error) {
+func (ffs *FilFilSource) Resolve(p cid.Cid) (Node, error) {
 	node, ok := ffs.pnMapping[p]
 	if !ok {
 		return nil, fmt.Errorf("failed to resolve pointer to node %s", p)
@@ -153,65 +156,10 @@ func (ffs *FilFilSource) Resolve(p Pointer) (Node, error) {
 
 func NewFilFilSource() *FilFilSource {
 	return &FilFilSource{
-		hpMapping: map[Height][]Pointer{},
-		pnMapping: map[Pointer]Node{},
+		hpMapping: map[Height][]cid.Cid{},
+		pnMapping: map[cid.Cid]Node{},
 	}
 }
 
 var _ Node = (*FilFilNode)(nil)
 var _ Source = (*FilFilSource)(nil)
-
-//var FilFilDAG = NewDAG(NewMapNodeStore())
-
-//func FilFilDAGBuilder(ctx context.Context, tsCh chan *types.TipSet) error {
-//	var ffSource = NewFilFilSource()
-//
-//	// todo fix
-//	cancel := context.CancelFunc(func() {})
-//	for {
-//		select {
-//		case <-ctx.Done():
-//			cancel()
-//			return fmt.Errorf("FilFilDAG down...")
-//		case ts, ok := <-tsCh:
-//			if !ok {
-//				log.Warn("ts chan closed")
-//				return fmt.Errorf("ts chan closed ...")
-//			}
-//			ffSource.AddSource(*ts)
-//
-//			cids := ts.Cids()
-//
-//			for i := 0; i < len(cids); i++ {
-//				id := cids[i]
-//
-//				err := FilFilDAG.Link(CidToPointer(id), ffSource)
-//
-//				if err != nil {
-//					return fmt.Errorf("FilFilDAG put node err: %s", err)
-//				}
-//			}
-//		}
-//	}
-//}
-
-func FilFilDAGBuilder(ctx context.Context, ts *types.TipSet, dag *DAG, src *FilFilSource) error {
-	err := src.AddSource(*ts, dag)
-	if err != nil {
-		return fmt.Errorf("add source err: %s", err)
-	}
-
-	cids := ts.Cids()
-
-	for i := 0; i < len(cids); i++ {
-		id := cids[i]
-
-		err := dag.Link(CidToPointer(id), src)
-
-		if err != nil {
-			return fmt.Errorf("FilFilDAG put node err: %s", err)
-		}
-	}
-
-	return nil
-}

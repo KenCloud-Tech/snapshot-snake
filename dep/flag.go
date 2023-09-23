@@ -7,12 +7,15 @@ import (
 	"github.com/filecoin-project/lotus/api/v0api"
 	cliutil "github.com/filecoin-project/lotus/cli/util"
 	"github.com/filecoin-project/lotus/node/config"
+	logging "github.com/ipfs/go-log/v2"
 	"github.com/mitchellh/go-homedir"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/fx"
 	"os"
 	"path/filepath"
 )
+
+var log = logging.Logger("dep")
 
 // common flags
 var (
@@ -52,7 +55,7 @@ func GetRepoPath(cctx *cli.Context) (RepoPath, error) {
 	}
 
 	if err := os.Mkdir(dir, 0755); err != nil {
-		return "", fmt.Errorf("mkdir at %s: %w", dir, err)
+		log.Errorf("mkdir at %s: %w", dir, err)
 	}
 
 	return RepoPath(dir), nil

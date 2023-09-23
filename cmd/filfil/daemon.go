@@ -9,6 +9,7 @@ import (
 	"github.com/FIL_FIL_Snapshot/lib/ffx"
 	"github.com/FIL_FIL_Snapshot/lib/monitor"
 	"github.com/FIL_FIL_Snapshot/snapshot"
+	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
@@ -64,11 +65,14 @@ var daemonStartCmd = &cli.Command{
 			monitor.ShutdownHandler{Component: "application", StopFunc: monitor.StopFunc(stopper)},
 		)
 		// monitor tsKey channel
+		var tsCh = make(chan *types.TipSet, 0)
 		ch, err := components.Notifier.Sub(ctx)
 		if err != nil {
 			return fmt.Errorf("sub head change: %w", err)
 		}
-		go components.Shutter.Run(ctx, doneCh, ch)
+
+		go components.Notifier.GetTipSet(ctx, ch, tsCh)
+		go components.Shutter.Run(ctx, doneCh, tsCh)
 
 		// RPC
 		addr := components.Cfg.HTTP.RPCListen
@@ -80,7 +84,6 @@ var daemonStartCmd = &cli.Command{
 			return fmt.Errorf("parse addr: %s, err: %v", addr, err)
 		}
 
-		fmt.Println(endpoint)
 		return ServeRPC(&components.NodeAPI, stopper, endpoint, doneCh, 0)
 	},
 }

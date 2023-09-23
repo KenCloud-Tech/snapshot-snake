@@ -2,6 +2,7 @@ package snapshot
 
 import (
 	"context"
+	"fmt"
 	"github.com/FIL_FIL_Snapshot/common"
 	"github.com/FIL_FIL_Snapshot/snapshot/saaf"
 	"github.com/filecoin-project/lotus/chain/types"
@@ -53,10 +54,10 @@ func DefaultHTTPOptions() HTTPOptions {
 	}
 }
 
-func New(ctx context.Context, sub common.HeadNotifier, cs common.ChainStore, dag *saaf.DAG, src *saaf.FilFilSource) *Shutter {
+func New(ctx context.Context, sub common.HeadNotifier, cs common.DagStore, dag *saaf.DAG, src *saaf.FilFilSource) *Shutter {
 	shutter := &Shutter{
 		sub: sub,
-		cs:  cs,
+		cd:  cs,
 		dag: dag,
 		src: src,
 	}
@@ -65,37 +66,88 @@ func New(ctx context.Context, sub common.HeadNotifier, cs common.ChainStore, dag
 
 type Shutter struct {
 	sub common.HeadNotifier
-	cs  common.ChainStore
+	cd  common.DagStore
 
 	dag *saaf.DAG
 	src *saaf.FilFilSource
 }
 
-func (s *Shutter) Run(ctx context.Context, doneCh <-chan struct{}, tsCh <-chan types.TipSetKey) {
+func (s *Shutter) Run(ctx context.Context, doneCh <-chan struct{}, tsCh <-chan *types.TipSet) {
+	// update dag
+	go s.DAGUpdate(ctx, s.dag, s.src)
+
 	for {
 		select {
 		case <-doneCh:
 			log.Info("quite head change loop")
 			return
-		case tsk, ok := <-tsCh:
+		case ts, ok := <-tsCh:
 			if !ok {
 				log.Warn("tsk chan closed")
 				return
 			}
-			// get ts
-			ts, err := s.cs.LoadTipSet(ctx, tsk)
-			if err != nil {
-				log.Errorf("failed to load tipset %s: %s", tsk, err)
-				continue
-			}
 
-			log.Infow("incoming tipset", "tsk", tsk, "height", ts.Height())
-			estart := time.Now()
+			log.Infow("incoming tipset", "height", ts.Height(), "tipset", ts)
+
 			// build filfil dag
-			if err := saaf.FilFilDAGBuilder(ctx, ts, s.dag, s.src); err != nil {
-				log.Errorf("failed to build filfil dag err: %s", err)
+			if err := s.DAGBuilder(ctx, ts, s.dag, s.src); err != nil {
+				log.Warnf("failed to build filfil dag err: %s", err)
 			}
-			log.Infow("done tipset building", "tsk", tsk, "height", ts.Height(), "elapsed", time.Now().Sub(estart))
+		}
+	}
+}
+
+func (s *Shutter) DAGBuilder(ctx context.Context, ts *types.TipSet, dag *saaf.DAG, src *saaf.FilFilSource) error {
+	// add ts to source
+	rcids := s.src.AddSource(*ts)
+
+	// remove cache cid
+	for _, rcid := range rcids {
+		err := s.cd.DeleteBlock(ctx, rcid)
+		if err != nil {
+			return err
+		}
+	}
+
+	cids := ts.Cids()
+
+	for _, cid := range cids {
+		id := cid
+
+		p, err := dag.Link(id, src)
+
+		if err != nil {
+			log.Warnf("link id %s err: %s", p, err)
+		}
+
+		err = s.cd.Put(ctx, id, src.GetBlockByCid(id))
+		if err != nil {
+			return fmt.Errorf("put block to cache err: %s", err)
+		}
+
+	}
+
+	return nil
+}
+
+func (s *Shutter) DAGUpdate(ctx context.Context, dag *saaf.DAG, src *saaf.FilFilSource) {
+	nodes := dag.Store()
+	nodeCh := nodes.All()
+
+	select {
+	case node := <-nodeCh:
+		pointer := node.Pointer()
+		cnt := dag.GetRefs(pointer)
+		if cnt == 0 {
+			// dag unlink
+			dag.Unlink(pointer)
+			// src remove
+			src.Remove(pointer)
+			// cache store remove
+			err := s.cd.DeleteBlock(ctx, pointer)
+			if err != nil {
+				log.Warnf("delete block from cache err: %s", err)
+			}
 		}
 	}
 }

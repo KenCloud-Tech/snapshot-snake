@@ -31,6 +31,24 @@ type HeadSub struct {
 	interval time.Duration
 }
 
+func (h *HeadSub) GetTipSet(ctx context.Context, tsk <-chan types.TipSetKey, tsCh chan *types.TipSet) {
+	for {
+		select {
+		case <-ctx.Done():
+			log.Infof("stop load tipset")
+			return
+		case tipSetKey := <-tsk:
+			rawTipSet, err := h.full.ChainGetTipSet(ctx, tipSetKey)
+			if err != nil {
+				log.Errorf("failed to get tipset: %s", err)
+				return
+			}
+
+			tsCh <- rawTipSet
+		}
+	}
+}
+
 func (h *HeadSub) Sub(ctx context.Context) (<-chan types.TipSetKey, error) {
 	ch := make(chan types.TipSetKey, 1)
 	go h.watch(ctx, ch)
@@ -69,6 +87,7 @@ func (h *HeadSub) watch(ctx context.Context, tx chan types.TipSetKey) {
 
 func (h *HeadSub) applyChanges(ctx context.Context, tx chan types.TipSetKey, changes []*api.HeadChange) {
 	idx := -1
+
 	for i := range changes {
 		switch changes[i].Type {
 		case store.HCCurrent, store.HCApply:

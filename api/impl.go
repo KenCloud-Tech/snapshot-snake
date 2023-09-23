@@ -3,13 +3,14 @@ package api
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"github.com/FIL_FIL_Snapshot/common"
-	"github.com/FIL_FIL_Snapshot/snapshot"
 	"github.com/FIL_FIL_Snapshot/snapshot/saaf"
-	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"go.uber.org/fx"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 	"io"
 )
@@ -20,32 +21,56 @@ var log = logging.Logger("rpc")
 type FilFilNodeAPI struct {
 	fx.In
 
-	Snapshot *snapshot.Shutter
-	Sub      common.HeadNotifier
-	Cs       common.ChainStore
+	Ds common.DagStore
 
-	Dag *saaf.DAG
 	Src *saaf.FilFilSource
 }
 
-func (f FilFilNodeAPI) ChainGetTipSet(ctx context.Context, key types.TipSetKey) (*types.TipSet, error) {
-	return f.Cs.LoadTipSet(ctx, key)
-}
+func (f *FilFilNodeAPI) ChainGetTipSet(ctx context.Context, tsk types.TipSetKey) (*types.TipSet, error) {
+	// Fetch tipset block headers from blockstore in parallel
+	var eg errgroup.Group
+	cids := tsk.Cids()
+	blks := make([]*types.BlockHeader, len(cids))
+	for i, c := range cids {
+		i, c := i, c
+		eg.Go(func() error {
+			b, err := f.Ds.Get(ctx, c)
+			if err != nil {
+				return xerrors.Errorf("get block %s: %w", c, err)
+			}
 
-func (f FilFilNodeAPI) FilFilDagExport(ctx context.Context, height saaf.Height, tsk types.TipSetKey) (<-chan []byte, error) {
-	// todo tsk => ts
-	//f.Cs.Get
-	ts, err := f.Cs.GetTipSetFromKey(ctx, tsk)
+			blk, err := types.DecodeBlock(b.RawData())
+			if err != nil {
+				return xerrors.Errorf("decode block err: %s", err)
+			}
+			blks[i] = blk
+			return nil
+		})
+	}
+	err := eg.Wait()
+	if blks[0].Cid() == blks[1].Cid() {
+		return nil, fmt.Errorf("common...")
+	}
 	if err != nil {
-		return nil, xerrors.Errorf("loading tipset %s: %w", tsk, err)
+		return nil, err
 	}
 
+	ts, err := types.NewTipSet(blks)
+	if err != nil {
+		return nil, err
+	}
+
+	return ts, nil
+
+}
+
+func (f *FilFilNodeAPI) FilFilDagExport(ctx context.Context, ts *types.TipSet) (<-chan []byte, error) {
 	r, w := io.Pipe()
 	out := make(chan []byte)
 	go func() {
 		bw := bufio.NewWriterSize(w, 1<<20)
 
-		err := f.Cs.Export(ctx, ts, abi.ChainEpoch(height), true, bw)
+		err := f.Ds.Export(ctx, ts, bw)
 		bw.Flush()
 		w.CloseWithError(err)
 	}()
@@ -84,6 +109,7 @@ func (f FilFilNodeAPI) FilFilDagExport(ctx context.Context, height saaf.Height, 
 	return out, nil
 }
 
-func (f FilFilNodeAPI) GetDagNode(ctx context.Context, height saaf.Height) ([]saaf.Pointer, error) {
-	return f.Src.FindPointersByHeight(height), nil
+func (f *FilFilNodeAPI) GetDagNode() ([]cid.Cid, error) {
+	latest := f.Src.Latest()
+	return latest, nil
 }
