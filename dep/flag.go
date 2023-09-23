@@ -55,7 +55,7 @@ func GetRepoPath(cctx *cli.Context) (RepoPath, error) {
 	}
 
 	if err := os.Mkdir(dir, 0755); err != nil {
-		log.Errorf("mkdir at %s: %w", dir, err)
+		log.Warnf("mkdir at %s: %w", dir, err)
 	}
 
 	return RepoPath(dir), nil
@@ -85,7 +85,4 @@ func FromFile(path string, def interface{}) (interface{}, error) {
 
 	defer file.Close() //nolint:errcheck // The file is RO
 	return config.FromReader(file, def)
-}
-func SegmentMetaDSPath(rpath RepoPath) string {
-	return filepath.Join(string(rpath), "filfilstore")
 }

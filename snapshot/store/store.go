@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"github.com/FIL_FIL_Snapshot/common"
 	"github.com/FIL_FIL_Snapshot/snapshot/saaf"
+	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/types"
 	lru "github.com/hashicorp/golang-lru"
 	blocks "github.com/ipfs/go-block-format"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/ipld/go-car"
+	carutil "github.com/ipld/go-car/util"
 	"github.com/multiformats/go-multicodec"
 	typegen "github.com/whyrusleeping/cbor-gen"
 	"golang.org/x/xerrors"
@@ -22,7 +24,7 @@ var DefaultBlkCacheCacheSize = 8192
 
 var log = logging.Logger("store")
 
-const HEIGHT_COUNT = 10
+const HEIGHT_COUNT = 20
 
 func NewCacheBlockStore() (*CacheBlockStore, error) {
 	cache, err := lru.New2Q(DefaultBlkCacheCacheSize)
@@ -92,107 +94,107 @@ func (cbs *CacheBlockStore) Export(ctx context.Context, ts *types.TipSet, w io.W
 	if err := car.WriteHeader(h, w); err != nil {
 		return xerrors.Errorf("failed to write car header: %s", err)
 	}
-	return nil
-	//return cbs.WalkSnapshot(ctx, ts, func(c cid.Cid) error {
-	//	blk, err := cbs.Get(ctx, c)
-	//	if err != nil {
-	//		return xerrors.Errorf("writing object to car, bs.Get: %w", err)
-	//	}
-	//
-	//	if err := carutil.LdWrite(w, c.Bytes(), blk.RawData()); err != nil {
-	//		return xerrors.Errorf("failed to write block to car output: %w", err)
-	//	}
-	//
-	//	return nil
-	//})
+
+	return cbs.WalkSnapshot(ctx, ts, func(c cid.Cid) error {
+		blk, err := cbs.Get(ctx, c)
+		if err != nil {
+			return xerrors.Errorf("writing object to car, bs.Get: %w", err)
+		}
+
+		if err := carutil.LdWrite(w, c.Bytes(), blk.RawData()); err != nil {
+			return xerrors.Errorf("failed to write block to car output: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func (cbs *CacheBlockStore) WalkSnapshot(ctx context.Context, ts *types.TipSet, cb func(cid.Cid) error) error {
-	//seen := cid.NewSet()
-	//walked := cid.NewSet()
-	//
-	//blocksToWalk := ts.Cids()
-	//
-	//walkDAG := func(blk cid.Cid) error {
-	//	if !seen.Visit(blk) {
-	//		return nil
-	//	}
-	//
-	//	if err := cb(blk); err != nil {
-	//		return err
-	//	}
-	//
-	//	data, err := cbs.Get(ctx, blk)
-	//	if err != nil {
-	//		return xerrors.Errorf("getting block: %w", err)
-	//	}
-	//
-	//	var b types.BlockHeader
-	//	if err := b.UnmarshalCBOR(bytes.NewBuffer(data.RawData())); err != nil {
-	//		return xerrors.Errorf("unmarshaling block header (cid=%s): %w", blk, err)
-	//	}
-	//
-	//	var out []cid.Cid
-	//	nodes := cbs.dag.Store()
-	//	node, err := nodes.Get(blk)
-	//	n := node.(*saaf.FilFilNode)
-	//	for _, pointer := range n.Parents() {
-	//		blocksToWalk = append(blocksToWalk, pointer)
-	//	}
-	//
-	//	if b.Height == 0 || b.Height > ts.Height()-HEIGHT_COUNT {
-	//		if walked.Visit(b.ParentStateRoot) {
-	//			cids, err := recurseLinks(ctx, cbs, walked, b.ParentStateRoot, []cid.Cid{b.ParentStateRoot})
-	//			if err != nil {
-	//				return xerrors.Errorf("recursing genesis state failed: %w", err)
-	//			}
-	//
-	//			out = append(out, cids...)
-	//		}
-	//
-	//		if walked.Visit(b.ParentMessageReceipts) {
-	//			out = append(out, b.ParentMessageReceipts)
-	//		}
-	//	}
-	//
-	//	for _, c := range out {
-	//		if seen.Visit(c) {
-	//			prefix := c.Prefix()
-	//
-	//			// Don't include identity CIDs.
-	//			if multicodec.Code(prefix.MhType) == multicodec.Identity {
-	//				continue
-	//			}
-	//
-	//			// We only include raw, cbor, and dagcbor, for now.
-	//			switch multicodec.Code(prefix.Codec) {
-	//			case multicodec.Cbor, multicodec.DagCbor, multicodec.Raw:
-	//			default:
-	//				continue
-	//			}
-	//
-	//			if err := cb(c); err != nil {
-	//				return err
-	//			}
-	//
-	//		}
-	//	}
-	//
-	//	return nil
-	//}
-	//
-	//log.Infow("export started")
-	//exportStart := build.Clock.Now()
-	//
-	//for len(blocksToWalk) > 0 {
-	//	next := blocksToWalk[0]
-	//	blocksToWalk = blocksToWalk[1:]
-	//	if err := walkDAG(next); err != nil {
-	//		return xerrors.Errorf("walk chain failed: %w", err)
-	//	}
-	//}
-	//
-	//log.Infow("export finished", "duration", build.Clock.Now().Sub(exportStart).Seconds())
+	seen := cid.NewSet()
+	walked := cid.NewSet()
+
+	blocksToWalk := ts.Cids()
+
+	walkDAG := func(blk cid.Cid) error {
+		if !seen.Visit(blk) {
+			return nil
+		}
+
+		if err := cb(blk); err != nil {
+			return err
+		}
+
+		data, err := cbs.Get(ctx, blk)
+		if err != nil {
+			return xerrors.Errorf("getting block: %w", err)
+		}
+
+		var b types.BlockHeader
+		if err := b.UnmarshalCBOR(bytes.NewBuffer(data.RawData())); err != nil {
+			return xerrors.Errorf("unmarshaling block header (cid=%s): %w", blk, err)
+		}
+
+		var out []cid.Cid
+		nodes := cbs.dag.Store()
+		node, err := nodes.Get(blk)
+		n := node.(*saaf.FilFilNode)
+		for _, pointer := range n.Parents() {
+			blocksToWalk = append(blocksToWalk, pointer)
+		}
+
+		if b.Height == 0 || b.Height > ts.Height()-HEIGHT_COUNT {
+			if walked.Visit(b.ParentStateRoot) {
+				cids, err := recurseLinks(ctx, cbs, walked, b.ParentStateRoot, []cid.Cid{b.ParentStateRoot})
+				if err != nil {
+					return xerrors.Errorf("recursing genesis state failed: %w", err)
+				}
+
+				out = append(out, cids...)
+			}
+
+			if walked.Visit(b.ParentMessageReceipts) {
+				out = append(out, b.ParentMessageReceipts)
+			}
+		}
+
+		for _, c := range out {
+			if seen.Visit(c) {
+				prefix := c.Prefix()
+
+				// Don't include identity CIDs.
+				if multicodec.Code(prefix.MhType) == multicodec.Identity {
+					continue
+				}
+
+				// We only include raw, cbor, and dagcbor, for now.
+				switch multicodec.Code(prefix.Codec) {
+				case multicodec.Cbor, multicodec.DagCbor, multicodec.Raw:
+				default:
+					continue
+				}
+
+				if err := cb(c); err != nil {
+					return err
+				}
+
+			}
+		}
+
+		return nil
+	}
+
+	log.Infow("export started")
+	exportStart := build.Clock.Now()
+
+	for len(blocksToWalk) > 0 {
+		next := blocksToWalk[0]
+		blocksToWalk = blocksToWalk[1:]
+		if err := walkDAG(next); err != nil {
+			return xerrors.Errorf("walk chain failed: %w", err)
+		}
+	}
+
+	log.Infow("export finished", "duration", build.Clock.Now().Sub(exportStart).Seconds())
 
 	return nil
 }
