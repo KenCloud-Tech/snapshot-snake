@@ -3,16 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/FIL_FIL_Snapshot/api"
-	"github.com/FIL_FIL_Snapshot/common"
-	"github.com/FIL_FIL_Snapshot/dep"
-	"github.com/FIL_FIL_Snapshot/lib/ffx"
-	"github.com/FIL_FIL_Snapshot/lib/monitor"
-	"github.com/FIL_FIL_Snapshot/snapshot"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/filecoin-project/lotus/node/modules/dtypes"
 	"github.com/multiformats/go-multiaddr"
 	"github.com/pkg/errors"
+	"github.com/snapshot_snake/api"
+	"github.com/snapshot_snake/common"
+	"github.com/snapshot_snake/dep"
+	"github.com/snapshot_snake/lib/ffx"
+	"github.com/snapshot_snake/lib/monitor"
+	"github.com/snapshot_snake/snapshot"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/fx"
 	"net/http"
@@ -34,10 +34,11 @@ var daemonStartCmd = &cli.Command{
 		shutdownCh := make(chan struct{})
 		var components struct {
 			fx.In
-			NodeAPI  api.FilFilNodeAPI
+			NodeAPI  api.SnapNodeAPI
 			Cfg      snapshot.Config
 			Mux      *http.ServeMux
 			Notifier common.HeadNotifier
+			Ds       common.DagStore
 			Shutter  *snapshot.Shutter
 		}
 		// di

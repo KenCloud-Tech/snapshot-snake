@@ -6,8 +6,8 @@ import (
 	"github.com/ipfs/go-cid"
 )
 
-type FilFilAPI interface {
+type SnapAPI interface {
 	GetDagNode() ([]cid.Cid, error)
 	ChainGetTipSet(context.Context, types.TipSetKey) (*types.TipSet, error)
-	FilFilDagExport(context.Context, *types.TipSet) (<-chan []byte, error)
+	SnapDagExport(context.Context, *types.TipSet) (<-chan []byte, error)
 }

@@ -3,12 +3,12 @@ package dep
 import (
 	"context"
 	"fmt"
-	"github.com/FIL_FIL_Snapshot/lib/ffx"
 	"github.com/filecoin-project/lotus/api/v0api"
 	cliutil "github.com/filecoin-project/lotus/cli/util"
 	"github.com/filecoin-project/lotus/node/config"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/mitchellh/go-homedir"
+	"github.com/snapshot_snake/lib/ffx"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/fx"
 	"os"
@@ -24,9 +24,9 @@ var (
 	}
 
 	RepoFlag = &cli.StringFlag{
-		Name:  "fil-fil-repo",
-		Usage: "repo path for filfil",
-		Value: "~/.filfil",
+		Name:  "snapshot-snake-repo",
+		Usage: "repo path for snapshot snake",
+		Value: "~/.snapshot",
 	}
 )
 

@@ -2,10 +2,10 @@ package dep
 
 import (
 	"fmt"
-	"github.com/FIL_FIL_Snapshot/common"
-	"github.com/FIL_FIL_Snapshot/lib/cliex"
-	"github.com/FIL_FIL_Snapshot/snapshot"
-	"github.com/FIL_FIL_Snapshot/snapshot/saaf"
+	"github.com/snapshot_snake/common"
+	"github.com/snapshot_snake/lib/cliex"
+	"github.com/snapshot_snake/snapshot"
+	"github.com/snapshot_snake/snapshot/saaf"
 	"go.uber.org/fx"
 	"os"
 )
@@ -37,7 +37,7 @@ type snapshotIn struct {
 	Cs  common.DagStore
 
 	Dag *saaf.DAG
-	Src *saaf.FilFilSource
+	Src *saaf.SnapSource
 }
 
 func NewSnapshot(in snapshotIn) *snapshot.Shutter {

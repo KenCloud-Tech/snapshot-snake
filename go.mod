@@ -1,4 +1,4 @@
-module github.com/FIL_FIL_Snapshot
+module github.com/snapshot_snake
 
 go 1.20
 

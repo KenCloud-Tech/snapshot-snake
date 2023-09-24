@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/FIL_FIL_Snapshot/dep"
-	"github.com/FIL_FIL_Snapshot/snapshot"
 	"github.com/filecoin-project/lotus/node/config"
+	"github.com/snapshot_snake/dep"
+	"github.com/snapshot_snake/snapshot"
 	"github.com/urfave/cli/v2"
 	"os"
 	"path/filepath"

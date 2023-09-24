@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/FIL_FIL_Snapshot/common"
-	"github.com/FIL_FIL_Snapshot/snapshot/saaf"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/types"
 	lru "github.com/hashicorp/golang-lru"
@@ -15,6 +13,8 @@ import (
 	"github.com/ipld/go-car"
 	carutil "github.com/ipld/go-car/util"
 	"github.com/multiformats/go-multicodec"
+	"github.com/snapshot_snake/common"
+	"github.com/snapshot_snake/snapshot/saaf"
 	typegen "github.com/whyrusleeping/cbor-gen"
 	"golang.org/x/xerrors"
 	"io"
@@ -24,15 +24,16 @@ var DefaultBlkCacheCacheSize = 8192
 
 var log = logging.Logger("store")
 
-const HEIGHT_COUNT = 20
+const HEIGHT_COUNT = 10
 
-func NewCacheBlockStore() (*CacheBlockStore, error) {
+func NewCacheBlockStore(dag *saaf.DAG) (*CacheBlockStore, error) {
 	cache, err := lru.New2Q(DefaultBlkCacheCacheSize)
 	if err != nil {
 		return nil, err
 	}
 
 	res := &CacheBlockStore{
+		dag:   dag,
 		cache: cache,
 	}
 
@@ -82,6 +83,28 @@ func (cbs *CacheBlockStore) Put(ctx context.Context, c cid.Cid, block blocks.Blo
 	}
 	log.Infof("add %s to cache", c)
 	cbs.cache.Add(c, block)
+
+	var b types.BlockHeader
+	if err := b.UnmarshalCBOR(bytes.NewBuffer(block.RawData())); err != nil {
+		return err
+	} else {
+		has, _ := cbs.Has(ctx, b.Messages)
+		if has {
+			return fmt.Errorf("has cid in cache")
+		}
+		log.Infof("add %s to cache", c)
+		blkMsg, _ := b.ToStorageBlock()
+		cbs.cache.Add(b.ParentStateRoot, blkMsg)
+
+		has, _ = cbs.Has(ctx, b.ParentStateRoot)
+		if has {
+			return fmt.Errorf("has cid in cache")
+		}
+		log.Infof("add %s to cache", c)
+		blkPsr, _ := b.ToStorageBlock()
+		cbs.cache.Add(b.ParentStateRoot, blkPsr)
+	}
+
 	return nil
 }
 
@@ -134,13 +157,27 @@ func (cbs *CacheBlockStore) WalkSnapshot(ctx context.Context, ts *types.TipSet, 
 			return xerrors.Errorf("unmarshaling block header (cid=%s): %w", blk, err)
 		}
 
-		var out []cid.Cid
+		var cids []cid.Cid
 		nodes := cbs.dag.Store()
-		node, err := nodes.Get(blk)
-		n := node.(*saaf.FilFilNode)
+		store := nodes.(*saaf.MapNodeStore)
+		node, err := store.Get(blk)
+		n := node.(*saaf.SnapNode)
+
 		for _, pointer := range n.Parents() {
 			blocksToWalk = append(blocksToWalk, pointer)
 		}
+
+		if b.Height > ts.Height()-HEIGHT_COUNT {
+			if walked.Visit(b.Messages) {
+				mcids, err := recurseLinks(ctx, cbs, walked, b.Messages, []cid.Cid{b.Messages})
+				if err != nil {
+					return xerrors.Errorf("recursing messages failed: %w", err)
+				}
+				cids = mcids
+			}
+		}
+
+		out := cids
 
 		if b.Height == 0 || b.Height > ts.Height()-HEIGHT_COUNT {
 			if walked.Visit(b.ParentStateRoot) {

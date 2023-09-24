@@ -13,20 +13,20 @@ var log = logging.Logger("saaf")
 
 const MAX_HEIGHT = 1000
 
-type FilFilNode struct {
+type SnapNode struct {
 	fCid cid.Cid
 	fBlk types.BlockHeader
 }
 
-func (f *FilFilNode) Pointer() cid.Cid {
+func (f *SnapNode) Pointer() cid.Cid {
 	return f.fCid
 }
 
-func (f *FilFilNode) GetBlkHeader() types.BlockHeader {
+func (f *SnapNode) GetBlkHeader() types.BlockHeader {
 	return f.fBlk
 }
 
-func (f *FilFilNode) GetBlock() (block.Block, error) {
+func (f *SnapNode) GetBlock() (block.Block, error) {
 	blk, err := f.fBlk.ToStorageBlock()
 	if err != nil {
 		return nil, err
@@ -34,45 +34,45 @@ func (f *FilFilNode) GetBlock() (block.Block, error) {
 	return blk, nil
 }
 
-func (f *FilFilNode) GetHeight() int64 {
+func (f *SnapNode) GetHeight() int64 {
 	return int64(f.fBlk.Height)
 }
 
-func (f *FilFilNode) Parents() []cid.Cid {
+func (f *SnapNode) Parents() []cid.Cid {
 	parents := f.fBlk.Parents
 
 	return parents
 }
 
-func NewFilFilNode(id cid.Cid, header types.BlockHeader) *FilFilNode {
-	return &FilFilNode{
+func NewSnapNode(id cid.Cid, header types.BlockHeader) *SnapNode {
+	return &SnapNode{
 		fCid: id,
 		fBlk: header,
 	}
 }
 
-type FilFilSource struct {
+type SnapSource struct {
 	hpMapping map[Height][]cid.Cid
 
 	pnMapping map[cid.Cid]Node
 }
 
-func (f *FilFilSource) Latest() []cid.Cid {
+func (f *SnapSource) Latest() []cid.Cid {
 	height := findLatestHeight(f.hpMapping)
 	return f.FindPointersByHeight(height)
 }
 
-func (f *FilFilSource) Remove(pointer cid.Cid) {
+func (f *SnapSource) Remove(pointer cid.Cid) {
 	delete(f.pnMapping, pointer)
 }
 
-func (f *FilFilSource) FindPointersByHeight(height Height) []cid.Cid {
+func (f *SnapSource) FindPointersByHeight(height Height) []cid.Cid {
 	return f.hpMapping[height]
 }
 
-func (f *FilFilSource) GetBlockByCid(id cid.Cid) block.Block {
+func (f *SnapSource) GetBlockByCid(id cid.Cid) block.Block {
 	node := f.pnMapping[id]
-	filNode := node.(*FilFilNode)
+	filNode := node.(*SnapNode)
 
 	blk, err := filNode.GetBlock()
 
@@ -105,7 +105,7 @@ func findLatestHeight(hpMapping map[Height][]cid.Cid) Height {
 	return latestHeight
 }
 
-func (ffs *FilFilSource) AddSource(ts types.TipSet) []cid.Cid {
+func (ffs *SnapSource) AddSource(ts types.TipSet) []cid.Cid {
 	height := ts.Height()
 	cids := ts.Cids()
 	blks := ts.Blocks()
@@ -134,9 +134,9 @@ func (ffs *FilFilSource) AddSource(ts types.TipSet) []cid.Cid {
 	for i := 0; i < len(cids); i++ {
 		id := cids[i]
 		header := blks[i]
-		filFilNode := NewFilFilNode(id, *header)
+		snapNode := NewSnapNode(id, *header)
 
-		ffs.pnMapping[id] = filFilNode
+		ffs.pnMapping[id] = snapNode
 	}
 
 	for _, rcid := range rcids {
@@ -146,7 +146,7 @@ func (ffs *FilFilSource) AddSource(ts types.TipSet) []cid.Cid {
 	return rcids
 }
 
-func (ffs *FilFilSource) Resolve(p cid.Cid) (Node, error) {
+func (ffs *SnapSource) Resolve(p cid.Cid) (Node, error) {
 	node, ok := ffs.pnMapping[p]
 	if !ok {
 		return nil, fmt.Errorf("failed to resolve pointer to node %s", p)
@@ -154,12 +154,12 @@ func (ffs *FilFilSource) Resolve(p cid.Cid) (Node, error) {
 	return node, nil
 }
 
-func NewFilFilSource() *FilFilSource {
-	return &FilFilSource{
+func NewSnapSource() *SnapSource {
+	return &SnapSource{
 		hpMapping: map[Height][]cid.Cid{},
 		pnMapping: map[cid.Cid]Node{},
 	}
 }
 
-var _ Node = (*FilFilNode)(nil)
-var _ Source = (*FilFilSource)(nil)
+var _ Node = (*SnapNode)(nil)
+var _ Source = (*SnapSource)(nil)

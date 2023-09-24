@@ -13,11 +13,6 @@ type HeadNotifier interface {
 	GetTipSet(context.Context, <-chan types.TipSetKey, chan *types.TipSet)
 }
 
-//type ChainStore interface {
-//	GetTipSetFromKey(context.Context, types.TipSetKey) (*types.TipSet, error)
-//	Export(context.Context, *types.TipSet, abi.ChainEpoch, bool, io.Writer) error
-//}
-
 type DagStore interface {
 	Has(context.Context, cid.Cid) (bool, error)
 	DeleteBlock(context.Context, cid.Cid) error

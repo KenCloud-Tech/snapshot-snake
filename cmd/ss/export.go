@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/FIL_FIL_Snapshot/api"
 	"github.com/filecoin-project/lotus/chain/types"
+	"github.com/snapshot_snake/api"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
 )
@@ -44,7 +44,7 @@ var exportSnapshotCmd = &cli.Command{
 			return err
 		}
 
-		stream, err := apiv0.FilFilDagExport(ctx, ts)
+		stream, err := apiv0.SnapDagExport(ctx, ts)
 		if err != nil {
 			return err
 		}
@@ -60,14 +60,14 @@ var exportSnapshotCmd = &cli.Command{
 		}
 
 		if !last {
-			return xerrors.Errorf("incomplete export (remote connection lost?)")
+			return xerrors.Errorf("incomplete export (remote connection lost /  daemon process has not yet loaded the block into the cache?)")
 		}
 
 		return nil
 	},
 }
 
-func LoadTipSet(ctx context.Context, api api.FilFilAPI) (*types.TipSet, error) {
+func LoadTipSet(ctx context.Context, api api.SnapAPI) (*types.TipSet, error) {
 	nodes, _ := api.GetDagNode()
 	// get from cache or build a ts
 	key := types.NewTipSetKey(nodes...)

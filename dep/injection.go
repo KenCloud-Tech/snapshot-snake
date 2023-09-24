@@ -2,14 +2,14 @@ package dep
 
 import (
 	"context"
-	"github.com/FIL_FIL_Snapshot/common"
-	"github.com/FIL_FIL_Snapshot/lib/cliex"
-	"github.com/FIL_FIL_Snapshot/lib/ffx"
-	"github.com/FIL_FIL_Snapshot/snapshot"
-	"github.com/FIL_FIL_Snapshot/snapshot/saaf"
-	"github.com/FIL_FIL_Snapshot/snapshot/store"
 	"github.com/filecoin-project/lotus/node/modules/helpers"
 	"github.com/ipfs/go-metrics-interface"
+	"github.com/snapshot_snake/common"
+	"github.com/snapshot_snake/lib/cliex"
+	"github.com/snapshot_snake/lib/ffx"
+	"github.com/snapshot_snake/snapshot"
+	"github.com/snapshot_snake/snapshot/saaf"
+	"github.com/snapshot_snake/snapshot/store"
 	"go.uber.org/fx"
 	"net/http"
 )
@@ -24,7 +24,7 @@ func Core(ctx context.Context, logger fx.Printer, target ...interface{}) ffx.Opt
 	return ffx.Options(
 		ffx.Override(new(GlobalContext), ctx),
 		ffx.Override(new(*http.ServeMux), http.NewServeMux()),
-		ffx.Override(new(helpers.MetricsCtx), metrics.CtxScope(ctx, "filfil")),
+		ffx.Override(new(helpers.MetricsCtx), metrics.CtxScope(ctx, "snapshot")),
 
 		ffx.If(logger != nil, ffx.Logger(logger)),
 		ffx.If(len(target) > 0, ffx.Populate(invokePopulate, target...)),
@@ -34,7 +34,7 @@ func Core(ctx context.Context, logger fx.Printer, target ...interface{}) ffx.Opt
 
 		// notifier & dag
 		ffx.Override(new(common.HeadNotifier), cliex.NewHeadSub),
-		ffx.Override(new(*saaf.FilFilSource), saaf.NewFilFilSource),
+		ffx.Override(new(*saaf.SnapSource), saaf.NewSnapSource),
 		ffx.Override(new(saaf.NodeStore), saaf.NewMapNodeStore),
 		ffx.Override(new(*saaf.DAG), saaf.NewDAG),
 

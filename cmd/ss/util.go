@@ -2,16 +2,16 @@ package main
 
 import (
 	"context"
-	"github.com/FIL_FIL_Snapshot/api"
-	"github.com/FIL_FIL_Snapshot/dep"
-	"github.com/FIL_FIL_Snapshot/lib/ffx"
-	"github.com/FIL_FIL_Snapshot/snapshot"
 	"github.com/filecoin-project/go-jsonrpc"
 	cliutil "github.com/filecoin-project/lotus/cli/util"
 	"github.com/filecoin-project/lotus/metrics"
 	logging "github.com/ipfs/go-log/v2"
 	"github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
+	"github.com/snapshot_snake/api"
+	"github.com/snapshot_snake/dep"
+	"github.com/snapshot_snake/lib/ffx"
+	"github.com/snapshot_snake/snapshot"
 	"github.com/urfave/cli/v2"
 	"go.opencensus.io/tag"
 	"golang.org/x/xerrors"
@@ -24,7 +24,7 @@ import (
 )
 
 var (
-	log   = logging.Logger("filfil")
+	log   = logging.Logger("snapshot")
 	fxlog = &fxLogger{
 		ZapEventLogger: log,
 	}
@@ -40,8 +40,8 @@ func (l *fxLogger) Printf(msg string, args ...interface{}) {
 }
 
 // GetAPIV0
-func GetAPIV0(ctx *cli.Context) (api.FilFilAPI, jsonrpc.ClientCloser, error) {
-	var res api.FilFilAPIStruct
+func GetAPIV0(ctx *cli.Context) (api.SnapAPI, jsonrpc.ClientCloser, error) {
+	var res api.SnapAPIStruct
 	rpath, err := dep.GetRepoPath(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -58,7 +58,7 @@ func GetAPIV0(ctx *cli.Context) (api.FilFilAPI, jsonrpc.ClientCloser, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	closer, err := jsonrpc.NewMergeClient(ctx.Context, addr, "filfil",
+	closer, err := jsonrpc.NewMergeClient(ctx.Context, addr, "snapshot snake",
 		[]interface{}{
 			&res.Internal,
 		},
@@ -67,14 +67,14 @@ func GetAPIV0(ctx *cli.Context) (api.FilFilAPI, jsonrpc.ClientCloser, error) {
 	return &res, closer, err
 }
 
-func ServeRPC(a api.FilFilAPI, stop ffx.StopFunc, addr multiaddr.Multiaddr, shutdownCh <-chan struct{}, maxRequestSize int64) error {
+func ServeRPC(a api.SnapAPI, stop ffx.StopFunc, addr multiaddr.Multiaddr, shutdownCh <-chan struct{}, maxRequestSize int64) error {
 	// Create a JSON-RPC server and set the maximum request size option if needed.
 	serverOptions := make([]jsonrpc.ServerOption, 0)
 	if maxRequestSize != 0 {
 		serverOptions = append(serverOptions, jsonrpc.WithMaxRequestSize(maxRequestSize))
 	}
 	rpcServer := jsonrpc.NewServer(serverOptions...)
-	rpcServer.Register("filfil", a)
+	rpcServer.Register("snapshot snake", a)
 
 	// Register the JSON-RPC server handler at the path "/rpc/v0" of the HTTP server.
 	http.Handle("/rpc/v0", rpcServer)

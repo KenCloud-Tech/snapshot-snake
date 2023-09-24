@@ -11,50 +11,50 @@ import (
 
 var ErrNotSupported = xerrors.New("method not supported")
 
-type FilFilAPIStruct struct {
+type SnapAPIStruct struct {
 	Internal struct {
 		ChainGetTipSet func(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) ``
 
-		FilFilDagExport func(p0 context.Context, p1 *types.TipSet) (<-chan []byte, error) ``
-
 		GetDagNode func() ([]cid.Cid, error) ``
+
+		SnapDagExport func(p0 context.Context, p1 *types.TipSet) (<-chan []byte, error) ``
 	}
 }
 
-type FilFilAPIStub struct {
+type SnapAPIStub struct {
 }
 
-func (s *FilFilAPIStruct) ChainGetTipSet(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) {
+func (s *SnapAPIStruct) ChainGetTipSet(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) {
 	if s.Internal.ChainGetTipSet == nil {
 		return nil, ErrNotSupported
 	}
 	return s.Internal.ChainGetTipSet(p0, p1)
 }
 
-func (s *FilFilAPIStub) ChainGetTipSet(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) {
+func (s *SnapAPIStub) ChainGetTipSet(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) {
 	return nil, ErrNotSupported
 }
 
-func (s *FilFilAPIStruct) FilFilDagExport(p0 context.Context, p1 *types.TipSet) (<-chan []byte, error) {
-	if s.Internal.FilFilDagExport == nil {
-		return nil, ErrNotSupported
-	}
-	return s.Internal.FilFilDagExport(p0, p1)
-}
-
-func (s *FilFilAPIStub) FilFilDagExport(p0 context.Context, p1 *types.TipSet) (<-chan []byte, error) {
-	return nil, ErrNotSupported
-}
-
-func (s *FilFilAPIStruct) GetDagNode() ([]cid.Cid, error) {
+func (s *SnapAPIStruct) GetDagNode() ([]cid.Cid, error) {
 	if s.Internal.GetDagNode == nil {
 		return *new([]cid.Cid), ErrNotSupported
 	}
 	return s.Internal.GetDagNode()
 }
 
-func (s *FilFilAPIStub) GetDagNode() ([]cid.Cid, error) {
+func (s *SnapAPIStub) GetDagNode() ([]cid.Cid, error) {
 	return *new([]cid.Cid), ErrNotSupported
 }
 
-var _ FilFilAPI = new(FilFilAPIStruct)
+func (s *SnapAPIStruct) SnapDagExport(p0 context.Context, p1 *types.TipSet) (<-chan []byte, error) {
+	if s.Internal.SnapDagExport == nil {
+		return nil, ErrNotSupported
+	}
+	return s.Internal.SnapDagExport(p0, p1)
+}
+
+func (s *SnapAPIStub) SnapDagExport(p0 context.Context, p1 *types.TipSet) (<-chan []byte, error) {
+	return nil, ErrNotSupported
+}
+
+var _ SnapAPI = new(SnapAPIStruct)

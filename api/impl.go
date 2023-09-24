@@ -4,29 +4,29 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"github.com/FIL_FIL_Snapshot/common"
-	"github.com/FIL_FIL_Snapshot/snapshot/saaf"
 	"github.com/filecoin-project/lotus/chain/types"
 	"github.com/ipfs/go-cid"
 	logging "github.com/ipfs/go-log/v2"
+	"github.com/snapshot_snake/common"
+	"github.com/snapshot_snake/snapshot/saaf"
 	"go.uber.org/fx"
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 	"io"
 )
 
-var _ FilFilAPI = (*FilFilNodeAPI)(nil)
+var _ SnapAPI = (*SnapNodeAPI)(nil)
 var log = logging.Logger("rpc")
 
-type FilFilNodeAPI struct {
+type SnapNodeAPI struct {
 	fx.In
 
 	Ds common.DagStore
 
-	Src *saaf.FilFilSource
+	Src *saaf.SnapSource
 }
 
-func (f *FilFilNodeAPI) ChainGetTipSet(ctx context.Context, tsk types.TipSetKey) (*types.TipSet, error) {
+func (f *SnapNodeAPI) ChainGetTipSet(ctx context.Context, tsk types.TipSetKey) (*types.TipSet, error) {
 	// Fetch tipset block headers from blockstore in parallel
 	var eg errgroup.Group
 	cids := tsk.Cids()
@@ -64,7 +64,7 @@ func (f *FilFilNodeAPI) ChainGetTipSet(ctx context.Context, tsk types.TipSetKey)
 
 }
 
-func (f *FilFilNodeAPI) FilFilDagExport(ctx context.Context, ts *types.TipSet) (<-chan []byte, error) {
+func (f *SnapNodeAPI) SnapDagExport(ctx context.Context, ts *types.TipSet) (<-chan []byte, error) {
 	r, w := io.Pipe()
 	out := make(chan []byte)
 	go func() {
@@ -109,7 +109,7 @@ func (f *FilFilNodeAPI) FilFilDagExport(ctx context.Context, ts *types.TipSet) (
 	return out, nil
 }
 
-func (f *FilFilNodeAPI) GetDagNode() ([]cid.Cid, error) {
+func (f *SnapNodeAPI) GetDagNode() ([]cid.Cid, error) {
 	latest := f.Src.Latest()
 	return latest, nil
 }
