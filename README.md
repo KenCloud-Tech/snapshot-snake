@@ -57,7 +57,7 @@ go build cmd/ss
 3. Initialize configuration information
 
 ```
-ss cfg
+ss cfg init
 ```
 
 4. Edit configuration
