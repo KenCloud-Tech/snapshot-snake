@@ -59,6 +59,7 @@ type SnapSource struct {
 
 func (f *SnapSource) Latest() []cid.Cid {
 	height := findLatestHeight(f.hpMapping)
+	log.Warnf("height %d", height)
 	return f.FindPointersByHeight(height)
 }
 

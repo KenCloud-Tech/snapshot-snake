@@ -64,13 +64,13 @@ func (f *SnapNodeAPI) ChainGetTipSet(ctx context.Context, tsk types.TipSetKey) (
 
 }
 
-func (f *SnapNodeAPI) SnapDagExport(ctx context.Context, ts *types.TipSet) (<-chan []byte, error) {
+func (f *SnapNodeAPI) SnapDagExport(ctx context.Context, ts *types.TipSet, n int64) (<-chan []byte, error) {
 	r, w := io.Pipe()
 	out := make(chan []byte)
 	go func() {
 		bw := bufio.NewWriterSize(w, 1<<20)
 
-		err := f.Ds.Export(ctx, ts, bw)
+		err := f.Ds.Export(ctx, ts, bw, n)
 		bw.Flush()
 		w.CloseWithError(err)
 	}()

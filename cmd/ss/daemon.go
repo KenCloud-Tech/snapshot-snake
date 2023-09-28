@@ -53,6 +53,7 @@ var daemonStartCmd = &cli.Command{
 		if err != nil {
 			return err
 		}
+
 		// http
 		httpStopper, errCh := serveHTTP(components.Cfg.HTTP.Listen, components.Mux)
 		select {

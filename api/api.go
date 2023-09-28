@@ -9,5 +9,5 @@ import (
 type SnapAPI interface {
 	GetDagNode() ([]cid.Cid, error)
 	ChainGetTipSet(context.Context, types.TipSetKey) (*types.TipSet, error)
-	SnapDagExport(context.Context, *types.TipSet) (<-chan []byte, error)
+	SnapDagExport(context.Context, *types.TipSet, int64) (<-chan []byte, error)
 }

@@ -18,5 +18,5 @@ type DagStore interface {
 	DeleteBlock(context.Context, cid.Cid) error
 	Put(context.Context, cid.Cid, blocks.Block) error
 	Get(context.Context, cid.Cid) (blocks.Block, error)
-	Export(context.Context, *types.TipSet, io.Writer) error
+	Export(context.Context, *types.TipSet, io.Writer, int64) error
 }
