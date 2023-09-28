@@ -33,6 +33,7 @@ type Source interface {
 	Resolve(cid.Cid) (Node, error)
 	Remove(cid.Cid)
 	Latest() []cid.Cid
+	HpRange() int
 }
 
 type NodeStore interface {

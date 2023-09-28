@@ -113,3 +113,7 @@ func (f *SnapNodeAPI) GetDagNode() ([]cid.Cid, error) {
 	latest := f.Src.Latest()
 	return latest, nil
 }
+
+func (f *SnapNodeAPI) GetCacheRange() (int, error) {
+	return f.Src.HpRange(), nil
+}

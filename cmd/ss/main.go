@@ -19,6 +19,7 @@ func main() {
 			cfgCmd,
 			daemonCmd,
 			exportCmd,
+			heightCmd,
 		},
 		Version: build.UserVersion(),
 		Flags: []cli.Flag{

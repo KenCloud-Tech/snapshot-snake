@@ -15,6 +15,8 @@ type SnapAPIStruct struct {
 	Internal struct {
 		ChainGetTipSet func(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) ``
 
+		GetCacheRange func() (int, error) ``
+
 		GetDagNode func() ([]cid.Cid, error) ``
 
 		SnapDagExport func(p0 context.Context, p1 *types.TipSet, p2 int64) (<-chan []byte, error) ``
@@ -33,6 +35,17 @@ func (s *SnapAPIStruct) ChainGetTipSet(p0 context.Context, p1 types.TipSetKey) (
 
 func (s *SnapAPIStub) ChainGetTipSet(p0 context.Context, p1 types.TipSetKey) (*types.TipSet, error) {
 	return nil, ErrNotSupported
+}
+
+func (s *SnapAPIStruct) GetCacheRange() (int, error) {
+	if s.Internal.GetCacheRange == nil {
+		return 0, ErrNotSupported
+	}
+	return s.Internal.GetCacheRange()
+}
+
+func (s *SnapAPIStub) GetCacheRange() (int, error) {
+	return 0, ErrNotSupported
 }
 
 func (s *SnapAPIStruct) GetDagNode() ([]cid.Cid, error) {

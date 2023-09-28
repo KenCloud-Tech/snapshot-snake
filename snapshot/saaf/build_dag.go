@@ -57,6 +57,10 @@ type SnapSource struct {
 	pnMapping map[cid.Cid]Node
 }
 
+func (s *SnapSource) HpRange() int {
+	return len(s.hpMapping)
+}
+
 func (f *SnapSource) Latest() []cid.Cid {
 	height := findLatestHeight(f.hpMapping)
 	log.Warnf("height %d", height)
