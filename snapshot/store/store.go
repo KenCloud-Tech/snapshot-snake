@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/filecoin-project/go-state-types/abi"
 	"github.com/filecoin-project/lotus/build"
 	"github.com/filecoin-project/lotus/chain/types"
 	lru "github.com/hashicorp/golang-lru"
@@ -77,38 +78,52 @@ func (cbs *CacheBlockStore) DeleteBlock(ctx context.Context, c cid.Cid) error {
 }
 
 func (cbs *CacheBlockStore) Put(ctx context.Context, c cid.Cid, block blocks.Block) error {
+	var err error
+	// cid - block
 	has, _ := cbs.Has(ctx, c)
 	if has {
-		return fmt.Errorf("has cid in cache")
+		return fmt.Errorf("has cid %s in cache", c)
 	}
-	log.Infof("add %s to cache", c)
+	log.Infof("add cid %s to cache", c)
 	cbs.cache.Add(c, block)
 
 	var b types.BlockHeader
-	if err := b.UnmarshalCBOR(bytes.NewBuffer(block.RawData())); err != nil {
+	if err = b.UnmarshalCBOR(bytes.NewBuffer(block.RawData())); err != nil {
 		return err
 	} else {
+		// block messages - block
 		has, _ := cbs.Has(ctx, b.Messages)
 		if has {
-			return fmt.Errorf("has cid in cache")
-		}
-		log.Infof("add %s to cache", c)
-		blkMsg, _ := b.ToStorageBlock()
-		cbs.cache.Add(b.ParentStateRoot, blkMsg)
+			log.Infof("has messages %s in cache", b.Messages)
 
+		} else {
+			log.Infof("add messages %s to cache", b.Messages)
+			cbs.cache.Add(b.Messages, block)
+		}
+
+		// block messageReceipts - block
+		has, _ = cbs.Has(ctx, b.ParentMessageReceipts)
+		if has {
+			log.Warnf("has parentmessagereceipts %s in cache", b.ParentMessageReceipts)
+		} else {
+			log.Infof("add parentmessagereceipts %s to cache", b.ParentMessageReceipts)
+			cbs.cache.Add(b.ParentMessageReceipts, block)
+		}
+
+		// block parentStateRoot - block
 		has, _ = cbs.Has(ctx, b.ParentStateRoot)
 		if has {
-			return fmt.Errorf("has cid in cache")
+			log.Warnf("has parentstateroot %s in cache", b.ParentStateRoot)
+		} else {
+			log.Infof("add parentstateroot %s to cache", b.ParentStateRoot)
+			cbs.cache.Add(b.ParentStateRoot, block)
 		}
-		log.Infof("add %s to cache", c)
-		blkPsr, _ := b.ToStorageBlock()
-		cbs.cache.Add(b.ParentStateRoot, blkPsr)
 	}
 
-	return nil
+	return err
 }
 
-func (cbs *CacheBlockStore) Export(ctx context.Context, ts *types.TipSet, w io.Writer) error {
+func (cbs *CacheBlockStore) Export(ctx context.Context, ts *types.TipSet, w io.Writer, rs int64) error {
 	h := &car.CarHeader{
 		Roots:   ts.Cids(),
 		Version: 1,
@@ -118,9 +133,10 @@ func (cbs *CacheBlockStore) Export(ctx context.Context, ts *types.TipSet, w io.W
 		return xerrors.Errorf("failed to write car header: %s", err)
 	}
 
-	return cbs.WalkSnapshot(ctx, ts, func(c cid.Cid) error {
+	return cbs.WalkSnapshot(ctx, ts, rs, func(c cid.Cid) error {
 		blk, err := cbs.Get(ctx, c)
 		if err != nil {
+			log.Errorf("cid ====> %s", c)
 			return xerrors.Errorf("writing object to car, bs.Get: %w", err)
 		}
 
@@ -132,7 +148,7 @@ func (cbs *CacheBlockStore) Export(ctx context.Context, ts *types.TipSet, w io.W
 	})
 }
 
-func (cbs *CacheBlockStore) WalkSnapshot(ctx context.Context, ts *types.TipSet, cb func(cid.Cid) error) error {
+func (cbs *CacheBlockStore) WalkSnapshot(ctx context.Context, ts *types.TipSet, rs int64, cb func(cid.Cid) error) error {
 	seen := cid.NewSet()
 	walked := cid.NewSet()
 
@@ -167,11 +183,11 @@ func (cbs *CacheBlockStore) WalkSnapshot(ctx context.Context, ts *types.TipSet, 
 			blocksToWalk = append(blocksToWalk, pointer)
 		}
 
-		if b.Height > ts.Height()-HEIGHT_COUNT {
+		if b.Height > ts.Height()-abi.ChainEpoch(rs) {
 			if walked.Visit(b.Messages) {
 				mcids, err := recurseLinks(ctx, cbs, walked, b.Messages, []cid.Cid{b.Messages})
 				if err != nil {
-					return xerrors.Errorf("recursing messages failed: %w", err)
+					return xerrors.Errorf("cid %s, bid %s, bid.msg %s, recursing messages failed: %w", blk, b.Cid(), b.Messages, err)
 				}
 				cids = mcids
 			}
@@ -179,7 +195,7 @@ func (cbs *CacheBlockStore) WalkSnapshot(ctx context.Context, ts *types.TipSet, 
 
 		out := cids
 
-		if b.Height == 0 || b.Height > ts.Height()-HEIGHT_COUNT {
+		if b.Height == 0 || b.Height > ts.Height()-abi.ChainEpoch(rs) {
 			if walked.Visit(b.ParentStateRoot) {
 				cids, err := recurseLinks(ctx, cbs, walked, b.ParentStateRoot, []cid.Cid{b.ParentStateRoot})
 				if err != nil {
@@ -243,8 +259,11 @@ func recurseLinks(ctx context.Context, bs common.DagStore, walked *cid.Set, root
 
 	data, err := bs.Get(ctx, root)
 	if err != nil {
-		return nil, xerrors.Errorf("recurse links get (%s) failed: %w", root, err)
+		log.Errorf("recurseLinks end %s not in cache", root)
+		return in, nil
 	}
+
+	in = append(in, root)
 
 	var rerr error
 	err = typegen.ScanForLinks(bytes.NewReader(data.RawData()), func(c cid.Cid) {
@@ -258,7 +277,6 @@ func recurseLinks(ctx context.Context, bs common.DagStore, walked *cid.Set, root
 			return
 		}
 
-		in = append(in, c)
 		var err error
 		in, err = recurseLinks(ctx, bs, walked, c, in)
 		if err != nil {
