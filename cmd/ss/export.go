@@ -7,6 +7,7 @@ import (
 	"github.com/snapshot_snake/api"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
+	"time"
 )
 
 var exportCmd = &cli.Command{
@@ -44,7 +45,10 @@ var exportSnapshotCmd = &cli.Command{
 			return err
 		}
 
-		stream, err := apiv0.SnapDagExport(ctx, ts)
+		rs := cctx.Int64("recent-stateroots")
+
+		begin := time.Now()
+		stream, err := apiv0.SnapDagExport(ctx, ts, rs)
 		if err != nil {
 			return err
 		}
@@ -53,11 +57,15 @@ var exportSnapshotCmd = &cli.Command{
 		for b := range stream {
 			last = len(b) == 0
 
+			fmt.Println(len(b))
+
 			_, err := fi.Write(b)
 			if err != nil {
 				return err
 			}
 		}
+
+		log.Infof("done export %d tipset height elapsed %s", rs, time.Now().Sub(begin).String())
 
 		if !last {
 			return xerrors.Errorf("incomplete export (remote connection lost /  daemon process has not yet loaded the block into the cache?)")
