@@ -17,7 +17,7 @@ type SnapAPIStruct struct {
 
 		GetDagNode func() ([]cid.Cid, error) ``
 
-		SnapDagExport func(p0 context.Context, p1 *types.TipSet) (<-chan []byte, error) ``
+		SnapDagExport func(p0 context.Context, p1 *types.TipSet, p2 int64) (<-chan []byte, error) ``
 	}
 }
 
@@ -46,14 +46,14 @@ func (s *SnapAPIStub) GetDagNode() ([]cid.Cid, error) {
 	return *new([]cid.Cid), ErrNotSupported
 }
 
-func (s *SnapAPIStruct) SnapDagExport(p0 context.Context, p1 *types.TipSet) (<-chan []byte, error) {
+func (s *SnapAPIStruct) SnapDagExport(p0 context.Context, p1 *types.TipSet, p2 int64) (<-chan []byte, error) {
 	if s.Internal.SnapDagExport == nil {
 		return nil, ErrNotSupported
 	}
-	return s.Internal.SnapDagExport(p0, p1)
+	return s.Internal.SnapDagExport(p0, p1, p2)
 }
 
-func (s *SnapAPIStub) SnapDagExport(p0 context.Context, p1 *types.TipSet) (<-chan []byte, error) {
+func (s *SnapAPIStub) SnapDagExport(p0 context.Context, p1 *types.TipSet, p2 int64) (<-chan []byte, error) {
 	return nil, ErrNotSupported
 }
 
