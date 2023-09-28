@@ -38,8 +38,10 @@ func Core(ctx context.Context, logger fx.Printer, target ...interface{}) ffx.Opt
 		ffx.Override(new(saaf.NodeStore), saaf.NewMapNodeStore),
 		ffx.Override(new(*saaf.DAG), saaf.NewDAG),
 
+		//cache
 		ffx.Override(new(common.DagStore), store.NewCacheBlockStore),
 
+		// snapshot
 		ffx.Override(new(*snapshot.Shutter), NewSnapshot),
 	)
 }

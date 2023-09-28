@@ -18,6 +18,7 @@ func LoadConfig(path RepoPath) (snapshot.Config, error) {
 	cfgPath := ConfigFilePath(path)
 	var cfg snapshot.Config
 	_, err := FromFile(cfgPath, &cfg)
+	fmt.Println(cfg)
 	if err != nil {
 		return snapshot.Config{}, fmt.Errorf("read config from file %s: %w", cfgPath, err)
 	}

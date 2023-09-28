@@ -2,7 +2,6 @@ package snapshot
 
 import (
 	"context"
-	"fmt"
 	"github.com/filecoin-project/lotus/chain/types"
 	lconfig "github.com/filecoin-project/lotus/node/config"
 	logging "github.com/ipfs/go-log/v2"
@@ -122,7 +121,7 @@ func (s *Shutter) DAGBuilder(ctx context.Context, ts *types.TipSet, dag *saaf.DA
 
 		err = s.cd.Put(ctx, id, src.GetBlockByCid(id))
 		if err != nil {
-			return fmt.Errorf("put block to cache err: %s", err)
+			log.Warnf("put block to cache err: %s", err)
 		}
 
 	}

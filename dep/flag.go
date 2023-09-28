@@ -55,7 +55,7 @@ func GetRepoPath(cctx *cli.Context) (RepoPath, error) {
 	}
 
 	if err := os.Mkdir(dir, 0755); err != nil {
-		log.Warnf("mkdir at %s: %w", dir, err)
+		log.Warnf("mkdir at %s: %w, already exists", dir, err)
 	}
 
 	return RepoPath(dir), nil
