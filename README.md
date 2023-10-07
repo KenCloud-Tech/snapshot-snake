@@ -44,8 +44,8 @@ Once all the dependencies are installed, you can build and install the Snapshot 
 1. Clone the repository:
 
 ```
-git clone https://github.com/filecoin-project/lotus.git
-cd lotus/
+git clone https://github.com/kenlabs/snapshot-snake.git
+cd snapshot-snake/
 ```
 
 2. Build the executable
