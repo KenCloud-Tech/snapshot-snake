@@ -12,7 +12,7 @@ func main() {
 	lotuslog.SetupLogLevels()
 
 	app := &cli.App{
-		Name:                 "snapshot sneak",
+		Name:                 "snapshot snake",
 		Usage:                "a small incentivized data network overlay on top of filecoin specifically for filecoin snapshots",
 		EnableBashCompletion: true,
 		Commands: []*cli.Command{
