@@ -129,6 +129,7 @@ func (ffs *SnapSource) AddSource(ts types.TipSet) []cid.Cid {
 		for len(ffs.hpMapping) > MAX_HEIGHT {
 			oldestHeight := findOldestHeight(ffs.hpMapping)
 			rcids = ffs.hpMapping[oldestHeight]
+			// delete ts in hpMapping
 			delete(ffs.hpMapping, oldestHeight)
 		}
 	}
@@ -144,6 +145,7 @@ func (ffs *SnapSource) AddSource(ts types.TipSet) []cid.Cid {
 		ffs.pnMapping[id] = snapNode
 	}
 
+	// delete ts in pnMapping
 	for _, rcid := range rcids {
 		delete(ffs.pnMapping, rcid)
 	}
