@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/filecoin-project/go-jsonrpc v0.3.1
+	github.com/filecoin-project/go-state-types v0.11.2-0.20230712101859-8f37624fa540
 	github.com/filecoin-project/lotus v1.23.3
 	github.com/hashicorp/golang-lru v0.6.0
 	github.com/ipfs/go-block-format v0.1.2
@@ -58,7 +59,6 @@ require (
 	github.com/filecoin-project/go-hamt-ipld/v2 v2.0.0 // indirect
 	github.com/filecoin-project/go-hamt-ipld/v3 v3.1.0 // indirect
 	github.com/filecoin-project/go-padreader v0.0.1 // indirect
-	github.com/filecoin-project/go-state-types v0.11.2-0.20230712101859-8f37624fa540 // indirect
 	github.com/filecoin-project/go-statemachine v1.0.3 // indirect
 	github.com/filecoin-project/go-statestore v0.2.0 // indirect
 	github.com/filecoin-project/kubo-api-client v0.0.1 // indirect
