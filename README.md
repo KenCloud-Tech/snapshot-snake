@@ -51,13 +51,13 @@ cd snapshot-snake/
 2. Build the executable
 
 ```
-go build cmd/ss
+go build ./cmd/ss
 ```
 
 3. Initialize configuration information
 
 ```
-ss cfg init
+./ss cfg init
 ```
 
 4. Edit configuration
@@ -71,15 +71,21 @@ Modify according to your own configuration.
 5. Start daemon
 
 ```
-ss daemon run
+./ss daemon run
 ```
 
 It will take some time to fill the dag and cache.
 
-6. Export snapshot snapshot
+6. Check the TipSet height stored in the cache
 
 ```
-ss export snapshot xxx.car
+./ss height
+```
+
+7. Export snapshot
+
+```
+./ss export snapshot xxx.car
 ```
 
 ## Architecture
