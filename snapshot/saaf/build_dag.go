@@ -11,7 +11,7 @@ import (
 
 var log = logging.Logger("saaf")
 
-const MAX_HEIGHT = 1000
+const MAX_HEIGHT = 3000
 
 type SnapNode struct {
 	fCid cid.Cid
